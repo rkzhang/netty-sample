@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -44,7 +45,19 @@ public class EchoClient {
 			for(int i = 0; i < 30000; i++) {
 				b.attr(id, i + "");
 				//ChannelFuture f = b.connect().sync();	//连接到远程节点，阻塞等待直到连接完成
-				ChannelFuture f = b.connect();
+				ChannelFuture f = b.connect().sync();
+				f.addListener(new ChannelFutureListener() {
+					@Override
+					public void operationComplete(ChannelFuture future) throws Exception {
+						if(future.isSuccess()) {
+							System.out.println("Connection established");
+						} else {
+							System.out.println("Connection attempt failed");
+							future.cause().printStackTrace();
+						}
+					}
+				});
+				
 				System.out.println("has sent");
 				//f.channel().closeFuture().sync();	//阻塞，直到Channel关闭
 				f.channel().closeFuture();
