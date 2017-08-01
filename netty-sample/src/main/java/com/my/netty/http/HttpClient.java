@@ -1,7 +1,9 @@
 package com.my.netty.http;
+
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
@@ -14,11 +16,8 @@ import io.netty.handler.codec.http.HttpMethod;
 import io.netty.handler.codec.http.HttpRequestEncoder;
 import io.netty.handler.codec.http.HttpResponseDecoder;
 import io.netty.handler.codec.http.HttpVersion;
-import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder;
 
 import java.net.URI;
-import java.net.URLDecoder;
-import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -27,7 +26,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 
 import org.apache.http.NameValuePair;
-import org.apache.http.client.utils.URIUtils;
 import org.apache.http.client.utils.URLEncodedUtils;
 import org.apache.http.message.BasicNameValuePair;
 
@@ -88,9 +86,20 @@ public class HttpClient {
         request.headers().set(HttpHeaders.Names.CONTENT_TYPE, HttpHeaders.Values.APPLICATION_X_WWW_FORM_URLENCODED);
    
         // 发送http请求
-        f.channel().write(request);
+        ChannelFuture future = f.channel().write(request);
+        future.addListener(new ChannelFutureListener() {
+					@Override
+					public void operationComplete(ChannelFuture future) throws Exception {
+						if(future.isSuccess()) {
+							System.out.println("Connection established");								
+						} else {
+							System.out.println("Connection attempt failed");
+							future.cause().printStackTrace();
+						}
+					}
+				}); 
         f.channel().flush();
-        f.channel().closeFuture().sync();
+	    f.channel().closeFuture().sync();
     	return null;
     }
 
@@ -99,10 +108,12 @@ public class HttpClient {
     	try {
 	        client = new HttpClient();
 	        client.connect("127.0.0.1", 8000);
-	        Map<String, Object> params = new HashMap<>();
-	        params.put("username", "18912345671");
-	        params.put("password", "12345678");
-	        client.post(params, "http://127.0.0.1:8000/api/user-login");
+	        for(int i = 0; i < 10; i++) {
+		        Map<String, Object> params = new HashMap<>();
+		        params.put("username", "18912345671");
+		        params.put("password", "12345678");
+		        client.post(params, "/api/user-login");
+	        }
     	} finally {
     		client.close();
     	}
