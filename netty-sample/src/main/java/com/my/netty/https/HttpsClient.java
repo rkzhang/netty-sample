@@ -14,11 +14,13 @@ import io.netty.handler.codec.http.DefaultFullHttpRequest;
 import io.netty.handler.codec.http.HttpClientCodec;
 import io.netty.handler.codec.http.HttpHeaders;
 import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpObjectAggregator;
 import io.netty.handler.codec.http.HttpVersion;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
+
 import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
@@ -26,7 +28,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+
 import javax.net.ssl.SSLEngine;
+
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
 import org.apache.http.message.BasicNameValuePair;
@@ -59,6 +63,7 @@ public class HttpsClient {
                     SSLEngine engine = sslCtx.newEngine(ch.alloc());              	
                 	ch.pipeline().addFirst("ssl", new SslHandler(engine));  //1
             		ch.pipeline().addLast("codec", new HttpClientCodec());
+            		ch.pipeline().addLast("aggregator", new HttpObjectAggregator(10 * 1024 * 1024));
                     ch.pipeline().addLast(new HttpsClientInboundHandler());
                 }
             });
@@ -125,7 +130,7 @@ public class HttpsClient {
     	try {
 	        client = new HttpsClient();
 	        client.connect("192.168.1.111", 443);
-	        for(int i = 0; i < 10000; i++) {
+	        for(int i = 0; i < 100; i++) {
 		        Map<String, Object> params = new HashMap<>();
 		        params.put("username", "18912345671");
 		        params.put("password", "12345678");
