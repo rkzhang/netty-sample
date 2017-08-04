@@ -1,5 +1,7 @@
 package com.my.netty.https;
 
+import com.my.netty.http.HttpClient;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -13,6 +15,7 @@ public class HttpsClientInboundHandler extends ChannelInboundHandlerAdapter {
 	
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+    	String id = ctx.channel().attr(HttpClient.ID).get();
         if (msg instanceof HttpResponse) 
         {
             HttpResponse response = (HttpResponse) msg;
@@ -23,7 +26,7 @@ public class HttpsClientInboundHandler extends ChannelInboundHandlerAdapter {
         {
             HttpContent content = (HttpContent)msg;
             ByteBuf buf = content.content();
-            System.out.println(buf.toString(io.netty.util.CharsetUtil.UTF_8));
+            System.out.println("ID is " + id + " " + buf.toString(io.netty.util.CharsetUtil.UTF_8));
             buf.release();
         }
     }

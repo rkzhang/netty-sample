@@ -11,6 +11,7 @@ public class HttpClientInboundHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+    	//String id = ctx.channel().attr(EchoClient.id).get();
         if (msg instanceof HttpResponse) 
         {
             HttpResponse response = (HttpResponse) msg;

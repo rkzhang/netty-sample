@@ -42,7 +42,7 @@ public class EchoClient {
 					}
 				});
 			Date begin = new Date();
-			for(int i = 0; i < 30000; i++) {
+			for(int i = 0; i < 1; i++) {
 				b.attr(id, i + "");
 				//ChannelFuture f = b.connect().sync();	//连接到远程节点，阻塞等待直到连接完成
 				ChannelFuture f = b.connect().sync();
@@ -67,7 +67,7 @@ public class EchoClient {
 			long intervel = (end.getTime() - begin.getTime())/1000;
 			
 			Thread.sleep(3000);
-			System.out.println(300000 / intervel + "request per second");
+			//System.out.println(300000 / intervel + "request per second");
 		} finally {
 			group.shutdownGracefully().sync();
 			System.out.println("客户端退出...");
