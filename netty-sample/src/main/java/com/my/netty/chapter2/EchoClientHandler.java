@@ -13,6 +13,8 @@ import io.netty.util.CharsetUtil;
 
 @Sharable
 public class EchoClientHandler extends SimpleChannelInboundHandler<ByteBuf> {
+	
+	private static final ByteBuf HEARTBEAT_SEQUENCE = Unpooled.unreleasableBuffer(Unpooled.copiedBuffer("HEARBEAT", CharsetUtil.UTF_8));
 
 	@Override
 	public void channelActive(ChannelHandlerContext ctx) throws Exception {	
@@ -30,7 +32,20 @@ public class EchoClientHandler extends SimpleChannelInboundHandler<ByteBuf> {
 		//bf.release();
 	}
 
-	
+	/**
+	 * 处理触发的IdleStateEvent事件
+	 */
+	@Override
+	public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+		System.out.println("heart beat");
+		if(evt instanceof IdleStateEvent) {
+			//发送心跳信息， 并在发送失败时关闭连接						
+			ctx.writeAndFlush(HEARTBEAT_SEQUENCE.duplicate()).addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
+		} else {
+			super.userEventTriggered(ctx, evt);
+		}
+		
+	}
 
 	@Override
 	protected void channelRead0(ChannelHandlerContext ctx, ByteBuf msg) throws Exception {

@@ -22,9 +22,7 @@ import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.AttributeKey;
 import io.netty.util.CharsetUtil;
 
-public class EchoClient {
-	
-	private static final ByteBuf HEARTBEAT_SEQUENCE = Unpooled.unreleasableBuffer(Unpooled.copiedBuffer("HEARBEAT", CharsetUtil.UTF_8));
+public class EchoClient {	
 	
 	private final String host;
 	
@@ -52,21 +50,6 @@ public class EchoClient {
 					//IdleStateHandler将在被触发时发送一个IdleStateEvent事件
 					ch.pipeline().addLast(new IdleStateHandler(0, 0, 3, TimeUnit.SECONDS));
 					ch.pipeline().addLast(new EchoClientHandler());
-				}
-				
-				/**
-				 * 处理触发的IdleStateEvent事件
-				 */
-				@Override
-				public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-					System.out.println("heart beat");
-					if(evt instanceof IdleStateEvent) {
-						//发送心跳信息， 并在发送失败时关闭连接						
-						ctx.writeAndFlush(HEARTBEAT_SEQUENCE.duplicate()).addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
-					} else {
-						super.userEventTriggered(ctx, evt);
-					}
-					
 				}
 				
 			});
