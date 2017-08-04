@@ -3,18 +3,28 @@ package com.my.netty.chapter2;
 import java.net.InetSocketAddress;
 import java.util.Date;
 import java.util.UUID;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 import io.netty.bootstrap.Bootstrap;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.timeout.IdleStateEvent;
+import io.netty.handler.timeout.IdleStateHandler;
 import io.netty.util.AttributeKey;
+import io.netty.util.CharsetUtil;
 
 public class EchoClient {
+	
+	private static final ByteBuf HEARTBEAT_SEQUENCE = Unpooled.unreleasableBuffer(Unpooled.copiedBuffer("HEARBEAT", CharsetUtil.UTF_8));
 	
 	private final String host;
 	
@@ -24,61 +34,86 @@ public class EchoClient {
 	
 	private static final Bootstrap b = new Bootstrap();
 	
+	private static final EventLoopGroup group = new NioEventLoopGroup();	
+	
 	public EchoClient(String host, int port) {
 		this.host = host;
 		this.port = port;
 	}
 	
-	public void start() throws Exception {
-		EventLoopGroup group = new NioEventLoopGroup();
-		try {
-			b.group(group)
-				.channel(NioSocketChannel.class)
-				.remoteAddress(new InetSocketAddress(host, port))
-				.handler(new ChannelInitializer<SocketChannel>() {
-					@Override
-					protected void initChannel(SocketChannel ch) throws Exception {
-						ch.pipeline().addLast(new EchoClientHandler());
-					}
-				});
-			Date begin = new Date();
-			for(int i = 0; i < 1; i++) {
-				b.attr(id, i + "");
-				//ChannelFuture f = b.connect().sync();	//连接到远程节点，阻塞等待直到连接完成
-				ChannelFuture f = b.connect().sync();
-				f.addListener(new ChannelFutureListener() {
-					@Override
-					public void operationComplete(ChannelFuture future) throws Exception {
-						if(future.isSuccess()) {
-							System.out.println("Connection established");
-						} else {
-							System.out.println("Connection attempt failed");
-							future.cause().printStackTrace();
-						}
-					}
-				});
+	public void start() throws Exception {	
+		b.group(group)
+			.channel(NioSocketChannel.class)
+			.remoteAddress(new InetSocketAddress(host, port))
+			.handler(new ChannelInitializer<SocketChannel>() {								
 				
-				System.out.println("has sent");
-				//f.channel().closeFuture().sync();	//阻塞，直到Channel关闭
-				f.channel().closeFuture();
-				System.out.println("has closed");
-			}
-			Date end = new Date();
-			long intervel = (end.getTime() - begin.getTime())/1000;
+				@Override
+				protected void initChannel(SocketChannel ch) throws Exception {
+					//IdleStateHandler将在被触发时发送一个IdleStateEvent事件
+					ch.pipeline().addLast(new IdleStateHandler(0, 0, 3, TimeUnit.SECONDS));
+					ch.pipeline().addLast(new EchoClientHandler());
+				}
+				
+				/**
+				 * 处理触发的IdleStateEvent事件
+				 */
+				@Override
+				public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+					System.out.println("heart beat");
+					if(evt instanceof IdleStateEvent) {
+						//发送心跳信息， 并在发送失败时关闭连接						
+						ctx.writeAndFlush(HEARTBEAT_SEQUENCE.duplicate()).addListener(ChannelFutureListener.CLOSE_ON_FAILURE);
+					} else {
+						super.userEventTriggered(ctx, evt);
+					}
+					
+				}
+				
+			});
+		
+		for(int i = 0; i < 1; i++) {
+			b.attr(id, i + "");
+			//ChannelFuture f = b.connect().sync();	//连接到远程节点，阻塞等待直到连接完成
+			ChannelFuture f = b.connect().sync();
+			f.addListener(new ChannelFutureListener() {
+				@Override
+				public void operationComplete(ChannelFuture future) throws Exception {
+					if(future.isSuccess()) {
+						System.out.println("Connection established");
+					} else {
+						System.out.println("Connection attempt failed");
+						future.cause().printStackTrace();
+					}
+				}
+			});
 			
-			Thread.sleep(3000);
-			//System.out.println(300000 / intervel + "request per second");
-		} finally {
-			group.shutdownGracefully().sync();
-			System.out.println("客户端退出...");
+			System.out.println("has sent");	
+			f.channel().closeFuture(); //Channel关闭
 		}
+		
+		
+		Thread.sleep(3000);
+		//System.out.println(300000 / intervel + "request per second");
+		
+	}
+	
+	public void close() throws InterruptedException {
+		group.shutdownGracefully().sync();
+		System.out.println("客户端退出...");
 	}
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws InterruptedException {
+		EchoClient client = null;
 		try {
-			new EchoClient("127.0.0.1", 8080).start();
+			client = new EchoClient("127.0.0.1", 8080);
+			client.start();
+			CountDownLatch latch = new CountDownLatch(1);
+			latch.await();
 		} catch (Exception e) {
 			e.printStackTrace();
+			client.close();
+		} finally {
+			client.close();
 		}
 	}
 
